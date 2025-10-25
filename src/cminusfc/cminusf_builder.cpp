@@ -58,8 +58,30 @@ Value* CminusfBuilder::visit(ASTNum &node) {
 }
 
 Value* CminusfBuilder::visit(ASTVarDeclaration &node) {
-    // TODO: This function is empty now.
-    // Add some code here.
+    Type *base_type = (node.type == TYPE_INT) 
+        ? static_cast<Type*>(module->get_int32_type()) 
+        : static_cast<Type*>(module->get_float_type());
+
+    if (node.num == nullptr) {
+        if (scope.in_global()) {
+            Constant *init = ConstantZero::get(base_type, module.get());
+            GlobalVariable *gvar = GlobalVariable::create(node.id, module.get(), base_type, false, init);
+            scope.push(node.id, gvar);
+        } else {
+            AllocaInst *local = builder->create_alloca(base_type);
+            scope.push(node.id, local);
+        }
+    } else {
+        ArrayType *arr_type = ArrayType::get(base_type, node.num->i_val);
+        if (scope.in_global()) {
+            Constant *init = ConstantZero::get(arr_type, module.get());
+            GlobalVariable *gvar = GlobalVariable::create(node.id, module.get(), arr_type, false, init);
+            scope.push(node.id, gvar);
+        } else {
+            AllocaInst *local = builder->create_alloca(arr_type);
+            scope.push(node.id, local);
+        }
+    }
     return nullptr;
 }
 
@@ -117,7 +139,7 @@ Value* CminusfBuilder::visit(ASTFunDeclaration &node) {
             builder->create_ret(CONST_FP(0.));
         else
             builder->create_ret(CONST_INT(0));
-    }
+        }
     scope.exit();
     return nullptr;
 }
@@ -127,18 +149,26 @@ Value* CminusfBuilder::visit(ASTParam &node) {
 }
 
 Value* CminusfBuilder::visit(ASTCompoundStmt &node) {
-    // TODO: This function is not complete.
-    // You may need to add some code here
-    // to deal with complex statements. 
-    
+    bool should_exit = !context.pre_enter_scope;
+    if (!context.pre_enter_scope) {
+        scope.enter();
+    } else {
+        context.pre_enter_scope = false;
+    }
+
     for (auto &decl : node.local_declarations) {
         decl->accept(*this);
     }
 
     for (auto &stmt : node.statement_list) {
         stmt->accept(*this);
-        if (builder->get_insert_block()->get_terminator() == nullptr)
+        if (builder->get_insert_block()->is_terminated()) {
             break;
+        }
+    }
+
+    if (should_exit) {
+        scope.exit();
     }
     return nullptr;
 }
