@@ -109,7 +109,7 @@ Value* CminusfBuilder::visit(ASTFunDeclaration &node) {
                 param_types.push_back(FLOATPTR_T);
             } else {
                 param_types.push_back(FLOAT_T);
-            }
+    }
         }
     }
 
@@ -126,10 +126,18 @@ Value* CminusfBuilder::visit(ASTFunDeclaration &node) {
         args.push_back(&arg);
     }
     for (unsigned int i = 0; i < node.params.size(); ++i) {
-        auto* param_i = node.params[i]->accept(*this);
-        args[i]->set_name(node.params[i]->id);
-        builder->create_store(args[i], param_i);
-        scope.push(args[i]->get_name(), param_i);
+        Value *alloc = nullptr;
+        if (node.params[i]->isarray) {
+            alloc = builder->create_alloca(
+                node.params[i]->type == TYPE_INT ? INT32PTR_T : FLOATPTR_T
+            );
+        } else {
+            alloc = builder->create_alloca(
+                node.params[i]->type == TYPE_INT ? INT32_T : FLOAT_T
+            );
+        }
+        builder->create_store(args[i], alloc);
+        scope.push(node.params[i]->id, alloc);
     }
     node.compound_stmt->accept(*this);
     if (builder->get_insert_block()->get_terminator() == nullptr) 
@@ -140,7 +148,7 @@ Value* CminusfBuilder::visit(ASTFunDeclaration &node) {
             builder->create_ret(CONST_FP(0.));
         else
             builder->create_ret(CONST_INT(0));
-        }
+    }
     scope.exit();
     return nullptr;
 }
