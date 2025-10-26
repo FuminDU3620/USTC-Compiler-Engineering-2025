@@ -1,4 +1,5 @@
 #include "cminusf_builder.hpp"
+#include "Value.hpp"
 
 #define CONST_FP(num) ConstantFP::get((float)num, module.get())
 #define CONST_INT(num) ConstantInt::get(num, module.get())
@@ -356,9 +357,43 @@ Value* CminusfBuilder::visit(ASTAssignExpression &node) {
 }
 
 Value* CminusfBuilder::visit(ASTSimpleExpression &node) {
-    // TODO: This function is empty now.
-    // Add some code here.
-    return nullptr;
+    if (node.additive_expression_r == nullptr) {
+        return node.additive_expression_l->accept(*this);
+    }
+
+    Value *left = node.additive_expression_l->accept(*this);
+    Value *right = node.additive_expression_r->accept(*this);
+    bool is_integer = promote(&*builder, &left, &right);
+    Value *result = nullptr;
+
+    switch (node.op) {
+    case OP_LT:
+        result = is_integer ? static_cast<Value*>(builder->create_icmp_lt(left, right))
+                            : (builder->create_fcmp_lt(left, right));
+        break;
+    case OP_LE:
+        result = is_integer ? static_cast<Value*>(builder->create_icmp_le(left, right))
+                            : builder->create_fcmp_le(left, right);
+        break;
+    case OP_GE:
+        result = is_integer ? static_cast<Value*>(builder->create_icmp_ge(left, right))
+                            : builder->create_fcmp_ge(left, right);
+        break;
+    case OP_GT:
+        result = is_integer ? static_cast<Value*>(builder->create_icmp_gt(left, right))
+                            : builder->create_fcmp_gt(left, right);
+        break;
+    case OP_EQ:
+        result = is_integer ? static_cast<Value*>(builder->create_icmp_eq(left, right))
+                            : builder->create_fcmp_eq(left, right);
+        break;
+    case OP_NEQ:
+        result = is_integer ? static_cast<Value*>(builder->create_icmp_ne(left, right))
+                            : builder->create_fcmp_ne(left, right);
+        break;
+    }
+
+    return builder->create_zext(result, INT32_T);
 }
 
 Value* CminusfBuilder::visit(ASTAdditiveExpression &node) {
