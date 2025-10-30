@@ -1,5 +1,4 @@
 #include "cminusf_builder.hpp"
-#include "Value.hpp"
 
 #define CONST_FP(num) ConstantFP::get((float)num, module.get())
 #define CONST_INT(num) ConstantInt::get(num, module.get())
@@ -140,7 +139,8 @@ Value* CminusfBuilder::visit(ASTFunDeclaration &node) {
         scope.push(node.params[i]->id, alloc);
     }
     node.compound_stmt->accept(*this);
-    if (builder->get_insert_block()->get_terminator() == nullptr) 
+    // if (builder->get_insert_block()->get_terminator() == nullptr) 
+    if (!builder->get_insert_block()->is_terminated())
     {
         if (context.func->get_return_type()->is_void_type())
             builder->create_void_ret();
