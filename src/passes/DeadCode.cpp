@@ -104,9 +104,6 @@ bool DeadCode::sweep(Function *func) {
         
         // 更新统计计数
         ins_count++;
-        
-        // 删除指令对象
-        delete inst;
     }
     
     return not wait_del.empty(); // changed
